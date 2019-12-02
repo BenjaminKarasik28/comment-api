@@ -1,42 +1,49 @@
 package com.example.commentapi.service;
 
-        import com.example.commentapi.controller.CommentController;
-        import com.example.commentapi.exceptionhandling.BlankCommentException;
-        import com.example.commentapi.repository.CommentRepository;
-        import com.example.commentapi.service.CommentService;
-        import org.junit.Before;
-        import org.junit.Test;
-        import org.junit.runner.RunWith;
-        import org.mockito.InjectMocks;
-        import org.mockito.Mock;
-        import org.mockito.Mockito;
-        import org.mockito.junit.MockitoJUnitRunner;
-        import org.springframework.amqp.rabbit.core.RabbitTemplate;
-        import org.springframework.http.MediaType;
-        import org.springframework.test.web.servlet.MockMvc;
-        import org.springframework.test.web.servlet.MockMvcBuilder;
-        import org.springframework.test.web.servlet.MvcResult;
-        import org.springframework.test.web.servlet.RequestBuilder;
-        import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-        import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-        import org.springframework.web.bind.annotation.DeleteMapping;
-        import org.springframework.web.bind.annotation.GetMapping;
+import com.example.commentapi.controller.CommentController;
+import com.example.commentapi.exceptionhandling.BlankCommentException;
+import com.example.commentapi.repository.CommentRepository;
+import com.example.commentapi.service.CommentService;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MockMvcBuilder;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 
-        import com.example.commentapi.model.Comment;
-        import com.example.commentapi.model.DummyPost;
-        import com.example.commentapi.model.PostComment;
-        import org.springframework.web.client.RestTemplate;
+import com.example.commentapi.model.Comment;
+import com.example.commentapi.model.DummyPost;
+import com.example.commentapi.model.PostComment;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-        import java.util.Arrays;
-        import java.util.Collections;
-        import java.util.List;
 
-        import static org.junit.Assert.*;
-        import static org.mockito.ArgumentMatchers.*;
-        import static org.mockito.Mockito.*;
-        import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-        import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-        import static org.mockito.ArgumentMatchers.any;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+//        import java.util.Queue;
+import org.springframework.amqp.core.Queue;
+
+
+
+
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+;
+import static org.mockito.ArgumentMatchers.any;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CommentServiceImplTest {
@@ -55,13 +62,17 @@ public class CommentServiceImplTest {
     CommentServiceImpl commentServiceImpl;
 
     @Mock
+    private Queue sampleQue;
+
+    @Mock
     RestTemplate restTemplate;
+
+    @Mock
+    RabbitTemplate rabbitTemplate;
 
     @Mock
     CommentRepository commentRepository;
 
-//    @Mock
-//    RabbitTemplate rabbitTemplate;
 
     @Before
     public void init() {
@@ -93,17 +104,10 @@ public class CommentServiceImplTest {
                 1L
         );
 
+        sampleQue = new Queue("queue1", false, false, false);
+
 
     }
-
-    //    getAllComments
-    //    getAllCommentsByPostId
-    //    getEmailByPostId
-    //*    createComment
-    //*    updateComment
-    //    deleteCommentById
-    //   deleteCommentByUsername
-    //   deletePostAndComments
 
     @Test
     public void getAllComments() throws Exception {
@@ -159,8 +163,6 @@ public class CommentServiceImplTest {
 
     private void getAllCommentsByPostId_Comment_Success() throws Exception {
         when(commentRepository.findAllByPostId(anyLong())).thenReturn(sampleCommentList);
-//        when(commentServiceImpl.getAllCommentsByPostId(anyLong())).thenReturn(samplePostComment);
-
         PostComment actual = commentServiceImpl.getAllCommentsByPostId(1L);
 
         assertNotNull(actual);
@@ -177,62 +179,14 @@ public class CommentServiceImplTest {
 
     }
 
-//    @Override
-//    public String createComment(Comment comment, String username, Long postId) throws BlankCommentException {
-//
-//        if(comment.getText().isEmpty()) {
-//            throw new BlankCommentException("Please enter text for your comment");
-//        } else {
-//            DummyPost dummyPost = restTemplate.getForObject("http://localhost:8082/post/" + postId, DummyPost.class);
-//
-//
-//            if(dummyPost.getId().equals(postId)) {
-//                comment.setPostId(postId);
-//                comment.setUsername(username);
-//                commentRepository.save(comment);
-//                String email = restTemplate.getForObject("http://localhost:8082/user/" + postId, String.class);
-//                rabbitTemplate.convertAndSend(queue.getName(), email);
-//                return email;
-//
-//            }
-//            return null;
-//        }
-//    }
-
 
 
     private void createComment_String_Success() throws Exception {
 
-
         when(restTemplate.getForObject(anyString(), any())).thenReturn(sampleDummyPost, "email");
         when(commentRepository.save(any())).thenReturn(sampleComment);
-        RabbitTemplate rabbitTemplate = new RabbitTemplate();
-        RabbitTemplate spy = Mockito.spy(rabbitTemplate);
-        Mockito.doNothing().when(spy).convertAndSend(any(), anyString());
-        String email = commentServiceImpl.createComment(sampleComment, "username", 1L);
+        String email = commentServiceImpl.createComment(sampleComment, "user1", sampleDummyPost.getId());
         assertNotNull(email);
-
-
-//        System.out.println("Create Comment Test");
-
-//            String userEmail = commentServiceImpl.createComment(sampleComment,"user1",sampleDummyPost.getId());
-//
-//            DummyPost dummyPost = sampleDummyPost;
-//            assertNotNull(dummyPost);
-//
-//            Comment comment = sampleComment;
-//            assertNotNull(comment);
-//
-//            when(restTemplate.getForObject("http://localhost:8082/post/" + 1L, DummyPost.class)).thenReturn(sampleDummyPost);
-//
-//            when(restTemplate.getForObject("http://localhost:8082/user/" + 1L, String.class)).thenReturn("userEmail");
-//            when(commentServiceImpl.createComment(any(), anyString(), anyLong())).thenReturn("userEmail");
-//
-//
-//            commentRepository.save(sampleComment);
-//
-//            assertNotNull(userEmail);
-//            assertEquals(userEmail, "userEmail");
 
     }
 
